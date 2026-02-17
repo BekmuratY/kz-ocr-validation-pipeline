@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parents[1] / "scripts"))
-
-from batch_infer import BATCH_FIELDNAMES
+from scripts.batch_infer import BATCH_FIELDNAMES
 
 
 def test_batch_csv_contract() -> None:

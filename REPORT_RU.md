@@ -24,23 +24,40 @@
 - val: 20
 - test: 10
 
-## 3. Что реализовано
+## 3. Быстрый запуск (5 минут)
 
-### 3.1 Подготовка датасета
+1. Проверка качества на test:
+```bash
+python3 scripts/evaluate.py --split test --images-root Cars --detector runs/detect/runs/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
+```
+
+2. Пакетная проверка новых изображений:
+```bash
+python3 scripts/batch_infer.py --input-dir new_images --detector runs/detect/runs/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/new_images_csv/predictions.csv --vis-dir outputs/new_images_vis
+```
+
+3. Экспорт для mobile/offline:
+```bash
+python3 scripts/export_model.py --weights runs/detect/runs/plate_kz/weights/best.pt --format onnx --imgsz 640
+```
+
+## 4. Что реализовано
+
+### 4.1 Подготовка датасета
 - Скрипт: `scripts/prepare_dataset.py`
 - Создаёт структуру в формате YOLO и шаблон CSV для OCR.
 
-### 3.2 Разметка bbox номеров
+### 4.2 Разметка bbox номеров
 - Полуавтоматическая разметка: `scripts/semi_auto_annotate.py`
 - Ручной fallback: `scripts/annotate_bboxes.py`
 - Размечены все 100 изображений.
 
-### 3.3 Обучение детектора
+### 4.3 Обучение детектора
 - Скрипт: `scripts/train_detector.py`
 - Модель: YOLOv8n (Ultralytics).
 - Веса: `runs/detect/.../weights/best.pt`.
 
-### 3.4 OCR + постобработка
+### 4.4 OCR + постобработка
 - Скрипт: `scripts/infer_plate.py`
 - OCR:
   - PaddleOCR (основной)
@@ -52,7 +69,7 @@
   - валидация формата и кода региона,
   - расчёт postprocess score.
 
-### 3.5 Batch и оценка
+### 4.5 Batch и оценка
 - Пакетный инференс: `scripts/batch_infer.py`
 - Оценка качества OCR: `scripts/evaluate.py` (Exact Accuracy + CER)
 - Экспорт под mobile/offline: `scripts/export_model.py`
@@ -61,9 +78,9 @@
   - `tests/test_validation_rules.py`
   - `tests/test_batch_contract.py`
 
-## 4. Метрики
+## 5. Метрики
 
-### 4.1 Качество OCR на test (10 изображений)
+### 5.1 Качество OCR на test (10 изображений)
 Команда:
 ```bash
 python3 scripts/evaluate.py --split test --images-root Cars --detector runs/detect/runs/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
@@ -77,7 +94,7 @@ python3 scripts/evaluate.py --split test --images-root Cars --detector runs/dete
 - `outputs/test_ocr_report.txt`
 - `outputs/test_ocr_results.csv`
 
-### 4.2 Проверка на новых изображениях
+### 5.2 Проверка на новых изображениях
 Папка: `new_images/` (5 изображений)
 
 Команда:
@@ -89,7 +106,7 @@ python3 scripts/batch_infer.py --input-dir new_images --detector runs/detect/run
 - `outputs/new_images_csv/predictions.csv`
 - `outputs/new_images_vis/` (визуализации bbox + текст)
 
-## 5. Соответствие требованиям ТЗ
+## 6. Соответствие требованиям ТЗ
 
 1. Open source:
 - Ultralytics YOLOv8, PaddleOCR/Tesseract, OpenCV, NumPy, Pillow.
@@ -102,25 +119,34 @@ python3 scripts/batch_infer.py --input-dir new_images --detector runs/detect/run
 - есть офлайн-конфиг через `.env.example`,
 - логика нормализации/валидации готова для переноса в мобильный модуль.
 
-## 6. Mobile/Offline шаги
+## 7. Финальные артефакты
 
-Экспорт в ONNX:
-```bash
-pip install onnx onnxruntime
-python3 scripts/export_model.py --weights runs/detect/runs/plate_kz/weights/best.pt --format onnx --imgsz 640
-```
+| Артефакт | Путь |
+|---|---|
+| Веса PyTorch | `runs/detect/runs/plate_kz/weights/best.pt` |
+| Веса ONNX | `runs/detect/runs/plate_kz/weights/best.onnx` |
+| Отчёт test OCR | `outputs/test_ocr_report.txt` |
+| Таблица test OCR | `outputs/test_ocr_results.csv` |
+| Предсказания новых фото | `outputs/new_images_csv/predictions.csv` |
+| Визуализации новых фото | `outputs/new_images_vis/` |
 
-Экспорт в TFLite:
-```bash
-python3 scripts/export_model.py --weights runs/detect/runs/plate_kz/weights/best.pt --format tflite --imgsz 640
-```
+## 8. Ограничения
 
-Для полностью офлайн OCR:
-- использовать локальные пути моделей через env:
-  - `PADDLEOCR_TEXT_DET_MODEL_DIR`
-  - `PADDLEOCR_TEXT_REC_MODEL_DIR`
+Возможные проблемные условия:
+- сильный наклон номера и motion blur,
+- очень низкое разрешение номера в кадре,
+- ночные/контровые сцены, блики и загрязнение номера,
+- нестандартные/редкие форматы номеров.
 
-## 7. Воспроизводимость
+## 9. План улучшений
+
+1. Увеличить датасет (особенно ночь/дождь/низкое качество).
+2. Добавить отдельный детектор качества кадра (флаг “переснять фото”).
+3. Дообучить OCR на узком домене KZ-номеров.
+4. Добавить ONNX Runtime benchmark (latency/FPS) для mobile-профиля.
+5. Поддержать расширенный набор форматов номеров РК через отдельные regex-профили.
+
+## 10. Воспроизводимость
 
 - Основные зависимости: `requirements.txt`
 - Зафиксированные версии: `requirements-lock.txt`
@@ -130,7 +156,7 @@ python3 scripts/export_model.py --weights runs/detect/runs/plate_kz/weights/best
 pytest -q
 ```
 
-## 8. Итог
+## 11. Итог
 
 Задание выполнено end-to-end:
 - датасет подготовлен и размечен,

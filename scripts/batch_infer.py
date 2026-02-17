@@ -5,7 +5,15 @@ import argparse
 import csv
 from pathlib import Path
 
-from infer_plate import run_plate_inference
+try:
+    from config_utils import cfg_get, load_config
+except ModuleNotFoundError:
+    from scripts.config_utils import cfg_get, load_config
+
+try:
+    from infer_plate import run_plate_inference
+except ModuleNotFoundError:
+    from scripts.infer_plate import run_plate_inference
 
 BATCH_FIELDNAMES = [
     "image",
@@ -23,7 +31,9 @@ BATCH_FIELDNAMES = [
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Batch plate inference for all images in a directory.")
+    parser.add_argument("--config", type=Path, default=None, help="Optional YAML config path.")
     parser.add_argument("--input-dir", type=Path, required=True, help="Directory with images.")
+    parser.add_argument("--conf", type=float, default=None, help="Detection confidence threshold.")
     parser.add_argument(
         "--detector",
         type=Path,
@@ -49,22 +59,45 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
-    images = sorted([p for p in args.input_dir.iterdir() if p.is_file() and p.suffix.lower() in exts])
-    if not images:
-        raise RuntimeError(f"No images found in: {args.input_dir}")
+    cfg = load_config(args.config)
 
-    args.output_csv.parent.mkdir(parents=True, exist_ok=True)
-    args.vis_dir.mkdir(parents=True, exist_ok=True)
+    input_dir = args.input_dir
+    detector = args.detector
+    conf = args.conf
+    ocr_backend = args.ocr_backend
+    tesseract_lang = args.tesseract_lang
+    output_csv = args.output_csv
+    vis_dir = args.vis_dir
+    if args.config is not None:
+        input_dir = Path(cfg_get(cfg, "paths.batch_input_dir", str(input_dir)))
+        detector = Path(cfg_get(cfg, "detector.weights", str(detector)))
+        if conf is None:
+            conf = float(cfg_get(cfg, "detector.conf", 0.2))
+        ocr_backend = str(cfg_get(cfg, "ocr.backend", ocr_backend))
+        tesseract_lang = str(cfg_get(cfg, "ocr.tesseract_lang", tesseract_lang))
+        output_csv = Path(cfg_get(cfg, "paths.batch_output_csv", str(output_csv)))
+        vis_dir = Path(cfg_get(cfg, "paths.batch_vis_dir", str(vis_dir)))
+
+    if conf is None:
+        conf = 0.2
+
+    exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    images = sorted([p for p in input_dir.iterdir() if p.is_file() and p.suffix.lower() in exts])
+    if not images:
+        raise RuntimeError(f"No images found in: {input_dir}")
+
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    vis_dir.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict[str, str]] = []
     for image_path in images:
-        vis_path = args.vis_dir / image_path.name
+        vis_path = vis_dir / image_path.name
         result = run_plate_inference(
             image_path=image_path,
-            detector_path=args.detector,
-            ocr_backend=args.ocr_backend,
-            tesseract_lang=args.tesseract_lang,
+            detector_path=detector,
+            conf=conf,
+            ocr_backend=ocr_backend,
+            tesseract_lang=tesseract_lang,
             save_vis=vis_path,
         )
         rows.append(
@@ -83,13 +116,13 @@ def main() -> None:
         )
         print(f"{image_path.name} -> {result['plate_text']} [{result['status']}]")
 
-    with args.output_csv.open("w", newline="", encoding="utf-8") as f:
+    with output_csv.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=BATCH_FIELDNAMES)
         writer.writeheader()
         writer.writerows(rows)
 
-    print(f"Saved CSV: {args.output_csv}")
-    print(f"Saved visualizations: {args.vis_dir}")
+    print(f"Saved CSV: {output_csv}")
+    print(f"Saved visualizations: {vis_dir}")
 
 
 if __name__ == "__main__":

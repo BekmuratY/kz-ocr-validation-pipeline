@@ -7,11 +7,20 @@ import re
 from collections import Counter
 from pathlib import Path
 
-from infer_plate import run_plate_inference
+try:
+    from config_utils import cfg_get, load_config
+except ModuleNotFoundError:
+    from scripts.config_utils import cfg_get, load_config
+
+try:
+    from infer_plate import run_plate_inference
+except ModuleNotFoundError:
+    from scripts.infer_plate import run_plate_inference
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate OCR quality on a split using ground-truth texts.")
+    parser.add_argument("--config", type=Path, default=None, help="Optional YAML config path.")
     parser.add_argument(
         "--labels-csv",
         type=Path,
@@ -31,6 +40,7 @@ def parse_args() -> argparse.Namespace:
         default=Path("runs/detect/plate_kz/weights/best.pt"),
         help="Path to detector weights.",
     )
+    parser.add_argument("--conf", type=float, default=None, help="Detection confidence threshold.")
     parser.add_argument("--ocr-backend", choices=["paddle", "tesseract"], default="paddle")
     parser.add_argument("--tesseract-lang", type=str, default="eng")
     parser.add_argument(
@@ -73,25 +83,49 @@ def levenshtein(a: str, b: str) -> int:
 
 def main() -> None:
     args = parse_args()
+    cfg = load_config(args.config)
+
+    labels_csv = args.labels_csv
+    split = args.split
+    images_root = args.images_root
+    detector = args.detector
+    conf = args.conf
+    ocr_backend = args.ocr_backend
+    tesseract_lang = args.tesseract_lang
+    output_csv = args.output_csv
+    report_path = args.report_path
+    if args.config is not None:
+        labels_csv = Path(cfg_get(cfg, "paths.ocr_labels_csv", str(labels_csv)))
+        split = str(cfg_get(cfg, "paths.eval_split", split))
+        images_root = Path(cfg_get(cfg, "paths.test_images_root", str(images_root)))
+        detector = Path(cfg_get(cfg, "detector.weights", str(detector)))
+        if conf is None:
+            conf = float(cfg_get(cfg, "detector.conf", 0.2))
+        ocr_backend = str(cfg_get(cfg, "ocr.backend", ocr_backend))
+        tesseract_lang = str(cfg_get(cfg, "ocr.tesseract_lang", tesseract_lang))
+        output_csv = Path(cfg_get(cfg, "paths.eval_output_csv", str(output_csv)))
+        report_path = Path(cfg_get(cfg, "paths.eval_report", str(report_path)))
+
     rows: list[dict[str, str]] = []
-    with args.labels_csv.open(newline="", encoding="utf-8") as f:
+    with labels_csv.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
-            if r["image"].startswith(f"images/{args.split}/"):
+            if r["image"].startswith(f"images/{split}/"):
                 rows.append({"image": r["image"], "gt_text": clean(r.get("plate_text", ""))})
 
     if not rows:
-        raise RuntimeError(f"No rows found for split={args.split} in {args.labels_csv}")
+        raise RuntimeError(f"No rows found for split={split} in {labels_csv}")
 
     out_rows: list[dict[str, str]] = []
     for row in rows:
         filename = Path(row["image"]).name
-        image_path = args.images_root / filename
+        image_path = images_root / filename
         result = run_plate_inference(
             image_path=image_path,
-            detector_path=args.detector,
-            ocr_backend=args.ocr_backend,
-            tesseract_lang=args.tesseract_lang,
+            detector_path=detector,
+            conf=conf,
+            ocr_backend=ocr_backend,
+            tesseract_lang=tesseract_lang,
             save_vis=None,
         )
         pred_text = clean(str(result["plate_text"]))
@@ -132,8 +166,8 @@ def main() -> None:
                 if g != p:
                     mismatch_pairs[f"{g}->{p}"] += 1
 
-    args.output_csv.parent.mkdir(parents=True, exist_ok=True)
-    with args.output_csv.open("w", newline="", encoding="utf-8") as f:
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    with output_csv.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f, fieldnames=["image", "gt_text", "pred_text", "status", "exact_match", "char_dist", "gt_len"]
         )
@@ -141,7 +175,7 @@ def main() -> None:
         writer.writerows(out_rows)
 
     lines = [
-        f"split={args.split}",
+        f"split={split}",
         f"test_images={len(out_rows)}",
         f"with_gt={exact_total}",
         f"exact_accuracy={exact_acc:.4f} ({exact_correct}/{exact_total})" if exact_total else "exact_accuracy=N/A",
@@ -183,14 +217,16 @@ def main() -> None:
         lines.append(
             f"{r['image']} | gt={r['gt_text']} | pred={r['pred_text']} | exact={r['exact_match']} | status={r['status']}"
         )
-    args.report_path.parent.mkdir(parents=True, exist_ok=True)
-    args.report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     print(f"exact_accuracy={exact_acc:.4f} ({exact_correct}/{exact_total})")
     print(f"cer={cer:.4f} ({char_err}/{char_total})")
-    print(f"saved_csv={args.output_csv}")
-    print(f"saved_report={args.report_path}")
+    print(f"saved_csv={output_csv}")
+    print(f"saved_report={report_path}")
 
 
 if __name__ == "__main__":
     main()
+    if conf is None:
+        conf = 0.2

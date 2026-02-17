@@ -1,0 +1,17 @@
+detector:
+  weights: runs/detect/runs/plate_kz/weights/best.pt
+  conf: 0.20
+
+ocr:
+  backend: paddle
+  tesseract_lang: eng
+
+paths:
+  ocr_labels_csv: data/kz_plate/ocr_labels_template.csv
+  eval_split: test
+  test_images_root: Cars
+  batch_input_dir: new_images
+  batch_output_csv: outputs/new_images_csv/predictions.csv
+  batch_vis_dir: outputs/new_images_vis
+  eval_output_csv: outputs/test_ocr_results.csv
+  eval_report: outputs/test_ocr_report.txt

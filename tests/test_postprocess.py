@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parents[1] / "scripts"))
-
-from infer_plate import (
+from scripts.postprocess import (
     clean_plate_text,
     detect_plate_format,
     is_region_code_valid,

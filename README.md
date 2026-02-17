@@ -29,6 +29,12 @@ cp .env.example .env
 set -a && source .env && set +a
 ```
 
+Developer tooling (optional):
+
+```bash
+pre-commit install
+```
+
 ## 2) Prepare dataset split
 
 ```bash
@@ -87,6 +93,7 @@ Model output:
 
 ```bash
 python scripts/infer_plate.py \
+  --config configs/default.yaml \
   --image Cars/img_1.jpg \
   --detector runs/detect/plate_kz/weights/best.pt \
   --ocr-backend paddle \
@@ -97,6 +104,7 @@ Tesseract fallback:
 
 ```bash
 python scripts/infer_plate.py \
+  --config configs/default.yaml \
   --image Cars/img_1.jpg \
   --detector runs/detect/plate_kz/weights/best.pt \
   --ocr-backend tesseract \
@@ -109,6 +117,7 @@ If the detector path is wrong, `infer_plate.py` automatically picks the latest `
 
 ```bash
 python scripts/batch_infer.py \
+  --config configs/default.yaml \
   --input-dir new_images \
   --detector runs/detect/plate_kz/weights/best.pt \
   --ocr-backend paddle \
@@ -127,6 +136,7 @@ python scripts/batch_infer.py \
 
 ```bash
 python scripts/evaluate.py \
+  --config configs/default.yaml \
   --labels-csv data/kz_plate/ocr_labels_template.csv \
   --split test \
   --images-root Cars \
@@ -142,6 +152,7 @@ The report now also includes top character mismatch pairs (e.g., `B->8`).
 
 ```bash
 python scripts/export_model.py \
+  --config configs/default.yaml \
   --weights runs/detect/plate_kz/weights/best.pt \
   --format onnx \
   --imgsz 640
@@ -151,6 +162,7 @@ TFLite export:
 
 ```bash
 python scripts/export_model.py \
+  --config configs/default.yaml \
   --weights runs/detect/plate_kz/weights/best.pt \
   --format tflite \
   --imgsz 640
@@ -161,6 +173,21 @@ python scripts/export_model.py \
 ```bash
 pytest -q
 ```
+
+## 10) Project Quality Helpers
+
+- `scripts/postprocess.py` contains normalization and validation rules (separate from model code).
+- Most runtime scripts support `--config configs/default.yaml` and load defaults from YAML.
+- `Makefile` shortcuts:
+  - `make test`
+  - `make eval`
+  - `make batch`
+  - `make export-onnx`
+  - `make lint`
+  - `make format`
+- `.pre-commit-config.yaml` + `pyproject.toml` provide lint/format rules.
+- `configs/default.yaml` contains default runtime paths and values.
+- `demo/RUN_DEMO.md` has minimal demo run steps.
 
 ## Mobile + Offline direction
 
