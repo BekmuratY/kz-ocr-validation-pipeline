@@ -1,0 +1,11 @@
+image,gt_text,pred_text,status,exact_match,char_dist,gt_len
+images/test/img_87.jpg,234ARD02,234ARD02,ok,1,0,8
+images/test/img_20.jpg,931WAZ05,931WAZ05,ok,1,0,8
+images/test/img_24.jpg,675BME05,675BME05,ok,1,0,8
+images/test/img_34.jpg,213AFU15,213AFU15,ok,1,0,8
+images/test/img_37.jpg,659AWJ09,659AWJ09,ok,1,0,8
+images/test/img_40.jpg,302ABP07,302ABP07,ok,1,0,8
+images/test/img_94.jpg,105AYC05,105AYC05,ok,1,0,8
+images/test/img_11.jpg,760AKJ03,760AKJ03,ok,1,0,8
+images/test/img_21.jpg,156CDA07,156CDA07,ok,1,0,8
+images/test/img_82.jpg,323BIP05,323BIP05,ok,1,0,8

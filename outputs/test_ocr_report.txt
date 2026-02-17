@@ -1,0 +1,74 @@
+split=test
+test_images=10
+with_gt=10
+exact_accuracy=1.0000 (10/10)
+cer=0.0000 (0/80)
+
+top_char_mismatches:
+none
+
+char_distribution_gt:
+0: 12
+5: 9
+A: 8
+3: 7
+2: 5
+1: 5
+6: 4
+7: 4
+9: 3
+B: 3
+D: 2
+W: 2
+J: 2
+P: 2
+C: 2
+4: 1
+R: 1
+Z: 1
+M: 1
+E: 1
+F: 1
+U: 1
+Y: 1
+K: 1
+I: 1
+
+char_distribution_pred:
+0: 12
+5: 9
+A: 8
+3: 7
+2: 5
+1: 5
+6: 4
+7: 4
+9: 3
+B: 3
+D: 2
+W: 2
+J: 2
+P: 2
+C: 2
+4: 1
+R: 1
+Z: 1
+M: 1
+E: 1
+F: 1
+U: 1
+Y: 1
+K: 1
+I: 1
+
+per_image:
+images/test/img_87.jpg | gt=234ARD02 | pred=234ARD02 | exact=1 | status=ok
+images/test/img_20.jpg | gt=931WAZ05 | pred=931WAZ05 | exact=1 | status=ok
+images/test/img_24.jpg | gt=675BME05 | pred=675BME05 | exact=1 | status=ok
+images/test/img_34.jpg | gt=213AFU15 | pred=213AFU15 | exact=1 | status=ok
+images/test/img_37.jpg | gt=659AWJ09 | pred=659AWJ09 | exact=1 | status=ok
+images/test/img_40.jpg | gt=302ABP07 | pred=302ABP07 | exact=1 | status=ok
+images/test/img_94.jpg | gt=105AYC05 | pred=105AYC05 | exact=1 | status=ok
+images/test/img_11.jpg | gt=760AKJ03 | pred=760AKJ03 | exact=1 | status=ok
+images/test/img_21.jpg | gt=156CDA07 | pred=156CDA07 | exact=1 | status=ok
+images/test/img_82.jpg | gt=323BIP05 | pred=323BIP05 | exact=1 | status=ok

@@ -1,0 +1,6 @@
+image,pred_text,confidence,plate_valid,plate_format,region_valid,postprocess_score,normalization_steps,status,visualization
+test_img_1.jpg,828ARB09,0.8056,True,std_private,True,105,"upper_strip,drop_non_alnum,normalize_kz_pattern",ok,outputs/new_images_vis/test_img_1.jpg
+test_img_2.jpg,401AGO15,0.4672,True,std_private,True,105,upper_strip,ok,outputs/new_images_vis/test_img_2.jpg
+test_img_3.jpg,771AFM18,0.8824,True,std_private,True,105,,ok,outputs/new_images_vis/test_img_3.jpg
+test_img_4.jpg,146ADZ12,0.8157,True,std_private,True,105,,ok,outputs/new_images_vis/test_img_4.jpg
+test_img_5.jpg,688ACJ15,0.8131,True,std_private,True,105,,ok,outputs/new_images_vis/test_img_5.jpg

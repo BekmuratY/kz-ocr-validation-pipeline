@@ -1,0 +1,6 @@
+path: /Users/beks/Desktop/project_2/data/kz_plate
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: plate
