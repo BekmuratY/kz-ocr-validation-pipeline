@@ -1,12 +1,12 @@
-# KZ Plate Recognition (Local, Open Source)
+# Распознавание номеров РК (локально, open source)
 
-This project is a local pipeline for Kazakhstan license plate recognition:
-1. Prepare dataset from `data/cars` (100 images).
-2. Annotate plate bounding boxes.
-3. Train a detector (YOLOv8).
-4. Run OCR and output plate text.
+Проект — локальный пайплайн распознавания государственных номерных знаков Казахстана:
+1. Подготовка датасета из `data/cars` (100 изображений).
+2. Разметка bbox номера.
+3. Обучение детектора (YOLOv8).
+4. OCR + постобработка и вывод текста номера.
 
-## 1) Install dependencies
+## 1) Установка зависимостей
 
 ```bash
 python3 -m venv .venv
@@ -15,47 +15,46 @@ pip install -U pip
 pip install -r requirements.txt
 ```
 
-PaddleOCR is the only OCR backend used in this project.
-For reproducible environment, you can pin exact versions:
+Для воспроизводимости можно использовать фиксированные версии:
 
 ```bash
 pip install -r requirements-lock.txt
 ```
 
-Offline env setup (optional):
+Оффлайн‑настройка (опционально):
 
 ```bash
 cp .env.example .env
 set -a && source .env && set +a
 ```
 
-Offline PaddleOCR model paths (required for fully offline runs):
+Оффлайн‑модели PaddleOCR (обязательно для полностью оффлайн режима):
 - `PADDLEOCR_TEXT_DET_MODEL_DIR`
 - `PADDLEOCR_TEXT_REC_MODEL_DIR`
 
-If these are set and the paths do not exist, inference will fail fast with a clear error.
+Если пути заданы, но не существуют — инференс завершится с ошибкой.
 
-Developer tooling (optional):
+Инструменты разработчика (опционально):
 
 ```bash
 pre-commit install
 ```
 
-## 2) Prepare dataset split
+## 2) Подготовка датасета
 
 ```bash
 python scripts/prepare_dataset.py --source data/cars --out data/kz_plate --copy
 ```
 
-Result:
+Результат:
 - `data/kz_plate/images/{train,val,test}`
-- `data/kz_plate/labels/{train,val,test}` (empty YOLO label placeholders)
+- `data/kz_plate/labels/{train,val,test}` (пустые YOLO‑лейблы)
 - `data/kz_plate/data.yaml`
-- `data/kz_plate/ocr_labels_template.csv` (fill true plate texts later)
+- `data/kz_plate/ocr_labels_template.csv` (заполнить истинные номера)
 
-## 3) Annotate plate bbox (YOLO format)
+## 3) Разметка bbox номера (YOLO)
 
-Recommended (faster): semi-automatic annotation with review.
+Рекомендуется полуавтоматическая разметка:
 
 ```bash
 python scripts/semi_auto_annotate.py --dataset data/kz_plate --split train --only-empty
@@ -63,13 +62,13 @@ python scripts/semi_auto_annotate.py --dataset data/kz_plate --split val --only-
 python scripts/semi_auto_annotate.py --dataset data/kz_plate --split test --only-empty
 ```
 
-Controls:
-- `A` accept suggested bbox
-- `E` draw/edit bbox manually
-- `S` skip image
-- `Q` quit
+Управление:
+- `A` принять bbox
+- `E` нарисовать/исправить
+- `S` пропустить
+- `Q` выход
 
-Manual-only fallback:
+Ручная разметка (fallback):
 
 ```bash
 python scripts/annotate_bboxes.py --dataset data/kz_plate --split train
@@ -77,10 +76,10 @@ python scripts/annotate_bboxes.py --dataset data/kz_plate --split val
 python scripts/annotate_bboxes.py --dataset data/kz_plate --split test
 ```
 
-Each label file must contain one line:
-`0 x_center y_center width height` (normalized to [0..1]).
+Формат строки:
+`0 x_center y_center width height` (нормализовано в [0..1]).
 
-## 4) Train detector
+## 4) Обучение детектора
 
 ```bash
 python scripts/train_detector.py \
@@ -92,10 +91,10 @@ python scripts/train_detector.py \
   --device cpu
 ```
 
-Model output:
+Выход:
 - `runs/detect/plate_kz/weights/best.pt`
 
-## 5) Inference: image -> text
+## 5) Инференс (одно изображение → текст)
 
 ```bash
 python scripts/infer_plate.py \
@@ -105,9 +104,9 @@ python scripts/infer_plate.py \
   --save-vis outputs/img_1_result.jpg
 ```
 
-If the detector path is wrong, `infer_plate.py` automatically picks the latest `runs/**/best.pt`.
+Если путь к весам неверный — `infer_plate.py` автоматически подберёт последний `runs/**/best.pt`.
 
-## 6) Batch inference (folder -> CSV)
+## 6) Batch‑инференс (папка → CSV)
 
 ```bash
 python scripts/batch_infer.py \
@@ -118,18 +117,18 @@ python scripts/batch_infer.py \
   --vis-dir outputs/new_images_vis
 ```
 
-`predictions.csv` now includes:
-- `plate_valid` (format + region check)
-- `plate_format` (detected format label)
-- `plate_type` (NEW_STANDARD / OLD_STANDARD / DIPLOMATIC / TRANSIT / TRAILER / INVALID)
-- `region_valid` (last 2 digits in expected region range)
-- `region_code` (new: last 2 digits, old: leading letter)
-- `region_name` (mapped region name when available)
-- `region_scheme` (`new` or `old`)
-- `postprocess_score` (normalization confidence proxy)
-- `normalization_steps` (applied cleanup steps)
+`predictions.csv` включает:
+- `plate_valid` (валиден ли формат + регион)
+- `plate_format` (детектированный формат)
+- `plate_type` (NEW/OLD/DIPLOMATIC/TRANSIT/TRAILER/INVALID)
+- `region_valid`
+- `region_code`
+- `region_name`
+- `region_scheme` (`new`/`old`)
+- `postprocess_score`
+- `normalization_steps`
 
-## 7) OCR evaluation (Exact Accuracy + CER)
+## 7) Оценка OCR (Exact Accuracy + CER)
 
 ```bash
 python scripts/evaluate.py \
@@ -142,9 +141,9 @@ python scripts/evaluate.py \
   --report-path outputs/test_ocr_report.txt
 ```
 
-The report now also includes top character mismatch pairs (e.g., `B->8`).
+Отчёт включает топ‑пары несовпадений по символам.
 
-## 8) Export detector for mobile/offline
+## 8) Экспорт модели (mobile/offline)
 
 ```bash
 python scripts/export_model.py \
@@ -154,7 +153,7 @@ python scripts/export_model.py \
   --imgsz 640
 ```
 
-TFLite export:
+TFLite:
 
 ```bash
 python scripts/export_model.py \
@@ -164,19 +163,19 @@ python scripts/export_model.py \
   --imgsz 640
 ```
 
-## 9) Run unit tests
+## 9) Тесты
 
 ```bash
 pytest -q
 ```
 
-Optional integration test (requires weights + PaddleOCR + Ultralytics):
+Опциональный интеграционный тест (веса + PaddleOCR + Ultralytics):
 
 ```bash
 RUN_INTEGRATION=1 pytest -q tests/test_integration_pipeline.py
 ```
 
-Optional smoke test (no strict assertions, just no exceptions):
+Smoke‑тест (без строгих проверок):
 
 ```bash
 RUN_SMOKE=1 pytest -q tests/test_integration_pipeline.py
@@ -184,33 +183,33 @@ RUN_SMOKE=1 pytest -q tests/test_integration_pipeline.py
 
 ## 10) Project Quality Helpers
 
-- `scripts/postprocess.py` contains normalization and validation rules (separate from model code).
-- Most runtime scripts support `--config configs/default.yaml` and load defaults from YAML.
-- `Makefile` shortcuts:
+- `scripts/postprocess.py` — нормализация/валидация.
+- Большинство скриптов поддерживают `--config configs/default.yaml`.
+- `Makefile`:
   - `make test`
   - `make eval`
   - `make batch`
   - `make export-onnx`
   - `make lint`
   - `make format`
-- `.pre-commit-config.yaml` + `pyproject.toml` provide lint/format rules.
-- `configs/default.yaml` contains default runtime paths and values.
-- `demo/RUN_DEMO.md` has minimal demo run steps.
+- `.pre-commit-config.yaml` + `pyproject.toml` — линт/формат.
+- `configs/default.yaml` — дефолтные пути.
+- `demo/RUN_DEMO.md` — шаги демо.
 
-Known limitations:
-- strong tilt or motion blur,
-- very small plates in the frame,
-- night/backlight glare and dirty plates,
-- rare or non-standard plate layouts.
+Известные ограничения:
+- сильный наклон или motion blur,
+- очень маленький номер в кадре,
+- ночные/контровые сцены, грязь,
+- редкие/нестандартные форматы.
 
-Recommended next steps:
-- expand the dataset with hard conditions,
-- add augmentations for blur/glare/low-res,
-- consider OCR fine-tuning on KZ-specific plates.
+Рекомендации:
+- расширить датасет сложными сценами,
+- добавить аугментации blur/glare/low‑res,
+- при необходимости дообучить OCR под домен KZ.
 
-## 11) Final Repro Checklist
+## 11) Финальный чек‑лист (EN)
 
-1. Train detector (or ensure weights exist):
+1. Обучение детектора:
 ```bash
 python scripts/train_detector.py \
   --data data/kz_plate/data.yaml \
@@ -221,7 +220,7 @@ python scripts/train_detector.py \
   --device cpu
 ```
 
-2. Single image inference:
+2. Инференс одного изображения:
 ```bash
 python scripts/infer_plate.py \
   --config configs/default.yaml \
@@ -230,7 +229,7 @@ python scripts/infer_plate.py \
   --save-vis outputs/img_1_result.jpg
 ```
 
-3. Batch inference:
+3. Batch‑инференс:
 ```bash
 python scripts/batch_infer.py \
   --config configs/default.yaml \
@@ -240,7 +239,7 @@ python scripts/batch_infer.py \
   --vis-dir outputs/new_images_vis
 ```
 
-4. OCR evaluation:
+4. Оценка OCR:
 ```bash
 python scripts/evaluate.py \
   --config configs/default.yaml \
@@ -257,7 +256,7 @@ python scripts/evaluate.py \
 make ui
 ```
 
-6. Tests:
+6. Тесты:
 ```bash
 pytest -q
 ```
@@ -316,7 +315,7 @@ make ui
 pytest -q
 ```
 
-## 13) Project Structure
+## 13) Структура проекта
 
 ```text
 .
@@ -466,7 +465,7 @@ pytest -q
 │   ├── releases
 │   │   └── final_release.tgz
 │   ├── runs
-│   │   ├── batch_20260218_215444
+│   │   ├── batch_20260218_220803
 │   │   └── ui_20260218_220543
 │   ├── test_ocr_report.txt
 │   └── test_ocr_results.csv
@@ -511,31 +510,4 @@ pytest -q
 ```
 
 ## 14) Streamlit UI
-
-Run local web interface:
-
-```bash
-make ui
-```
-
-or:
-
-```bash
-streamlit run app.py
-```
-
-In UI you can:
-- upload one image and see detected bbox + plate text
-- upload multiple images and get batch table results
-- choose detector runtime path (`.pt` or `.onnx`)
-- enable auto-lower confidence if plate is not detected
-- download single-image visualization and CSV
-- download batch CSV
-- get timestamped UI run logs in `outputs/runs/ui_*`
-
-## Mobile + Offline direction
-
-- Export detector to ONNX/TFLite from Ultralytics.
-- Keep OCR local (Paddle Lite on-device).
-- Use same preprocessing + postprocessing logic from `scripts/infer_plate.py`.
-# kz-ocr-validation-pipeline
+*** End Patch
