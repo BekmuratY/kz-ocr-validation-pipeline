@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+from datetime import datetime
 from pathlib import Path
+import shutil
 
 try:
     from config_utils import cfg_get, load_config
@@ -54,7 +56,33 @@ def parse_args() -> argparse.Namespace:
         default=Path("outputs/batch_vis"),
         help="Where to save visualizations.",
     )
+    parser.add_argument(
+        "--run-log-root",
+        type=Path,
+        default=Path("outputs/runs"),
+        help="Root folder for timestamped run logs.",
+    )
+    parser.add_argument(
+        "--no-run-log",
+        action="store_true",
+        help="Disable timestamped run log copy.",
+    )
     return parser.parse_args()
+
+
+def inference_to_csv_row(image_name: str, result: dict[str, object], vis_path: Path) -> dict[str, str]:
+    return {
+        "image": image_name,
+        "pred_text": str(result["plate_text"]),
+        "confidence": f"{float(result['confidence']):.4f}",
+        "plate_valid": str(result["plate_valid"]),
+        "plate_format": str(result["plate_format"]),
+        "region_valid": str(result["region_valid"]),
+        "postprocess_score": str(result["postprocess_score"]),
+        "normalization_steps": ",".join(result["normalization_steps"]),
+        "status": str(result["status"]),
+        "visualization": str(vis_path),
+    }
 
 
 def main() -> None:
@@ -68,6 +96,7 @@ def main() -> None:
     tesseract_lang = args.tesseract_lang
     output_csv = args.output_csv
     vis_dir = args.vis_dir
+    run_log_root = args.run_log_root
     if args.config is not None:
         input_dir = Path(cfg_get(cfg, "paths.batch_input_dir", str(input_dir)))
         detector = Path(cfg_get(cfg, "detector.weights", str(detector)))
@@ -77,6 +106,7 @@ def main() -> None:
         tesseract_lang = str(cfg_get(cfg, "ocr.tesseract_lang", tesseract_lang))
         output_csv = Path(cfg_get(cfg, "paths.batch_output_csv", str(output_csv)))
         vis_dir = Path(cfg_get(cfg, "paths.batch_vis_dir", str(vis_dir)))
+        run_log_root = Path(cfg_get(cfg, "paths.run_log_root", str(run_log_root)))
 
     if conf is None:
         conf = 0.2
@@ -100,20 +130,7 @@ def main() -> None:
             tesseract_lang=tesseract_lang,
             save_vis=vis_path,
         )
-        rows.append(
-            {
-                "image": image_path.name,
-                "pred_text": str(result["plate_text"]),
-                "confidence": f"{float(result['confidence']):.4f}",
-                "plate_valid": str(result["plate_valid"]),
-                "plate_format": str(result["plate_format"]),
-                "region_valid": str(result["region_valid"]),
-                "postprocess_score": str(result["postprocess_score"]),
-                "normalization_steps": ",".join(result["normalization_steps"]),
-                "status": str(result["status"]),
-                "visualization": str(vis_path),
-            }
-        )
+        rows.append(inference_to_csv_row(image_path.name, result, vis_path))
         print(f"{image_path.name} -> {result['plate_text']} [{result['status']}]")
 
     with output_csv.open("w", newline="", encoding="utf-8") as f:
@@ -123,6 +140,23 @@ def main() -> None:
 
     print(f"Saved CSV: {output_csv}")
     print(f"Saved visualizations: {vis_dir}")
+
+    if not args.no_run_log:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_dir = run_log_root / f"batch_{ts}"
+        run_vis = run_dir / "vis"
+        run_csv = run_dir / "predictions.csv"
+        run_vis.mkdir(parents=True, exist_ok=True)
+        # Save CSV snapshot.
+        with run_csv.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=BATCH_FIELDNAMES)
+            writer.writeheader()
+            writer.writerows(rows)
+        for row in rows:
+            src = Path(row["visualization"])
+            if src.exists():
+                shutil.copy2(src, run_vis / src.name)
+        print(f"Saved run log: {run_dir}")
 
 
 if __name__ == "__main__":

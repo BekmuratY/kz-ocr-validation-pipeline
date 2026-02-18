@@ -189,6 +189,29 @@ pytest -q
 - `configs/default.yaml` contains default runtime paths and values.
 - `demo/RUN_DEMO.md` has minimal demo run steps.
 
+## 11) Streamlit UI
+
+Run local web interface:
+
+```bash
+make ui
+```
+
+or:
+
+```bash
+streamlit run app.py
+```
+
+In UI you can:
+- upload one image and see detected bbox + plate text
+- upload multiple images and get batch table results
+- choose detector runtime path (`.pt` or `.onnx`)
+- enable auto-lower confidence if plate is not detected
+- download single-image visualization and CSV
+- download batch CSV
+- get timestamped UI run logs in `outputs/runs/ui_*`
+
 ## Mobile + Offline direction
 
 - Export detector to ONNX/TFLite from Ultralytics.

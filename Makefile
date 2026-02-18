@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: test eval batch export-onnx format lint
+.PHONY: test eval batch export-onnx format lint ui
 
 test:
 	$(PYTHON) -m pytest -q
@@ -13,6 +13,9 @@ batch:
 
 export-onnx:
 	$(PYTHON) scripts/export_model.py --weights runs/detect/runs/plate_kz/weights/best.pt --format onnx --imgsz 640
+
+ui:
+	streamlit run app.py
 
 format:
 	$(PYTHON) -m black scripts tests
