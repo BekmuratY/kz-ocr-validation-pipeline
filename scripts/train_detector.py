@@ -18,7 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         type=str,
-        default="yolov8n.pt",
+        default="models/yolov8n.pt",
         help="Base model checkpoint.",
     )
     parser.add_argument("--epochs", type=int, default=80)

@@ -12,7 +12,7 @@
 
 ## 2. Данные проекта
 
-- Исходные изображения: `Cars/` (100 изображений, казахстанские номера).
+- Исходные изображения: `data/cars/` (100 изображений, казахстанские номера).
 - Структура датасета:
   - `data/kz_plate/images/{train,val,test}`
   - `data/kz_plate/labels/{train,val,test}`
@@ -28,17 +28,17 @@
 
 1. Проверка качества на test:
 ```bash
-python3 scripts/evaluate.py --split test --images-root Cars --detector runs/detect/runs/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
+python3 scripts/evaluate.py --split test --images-root data/cars --detector runs/detect/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
 ```
 
 2. Пакетная проверка новых изображений:
 ```bash
-python3 scripts/batch_infer.py --input-dir new_images --detector runs/detect/runs/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/new_images_csv/predictions.csv --vis-dir outputs/new_images_vis
+python3 scripts/batch_infer.py --input-dir data/new_images --detector runs/detect/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/new_images_csv/predictions.csv --vis-dir outputs/new_images_vis
 ```
 
 3. Экспорт для mobile/offline:
 ```bash
-python3 scripts/export_model.py --weights runs/detect/runs/plate_kz/weights/best.pt --format onnx --imgsz 640
+python3 scripts/export_model.py --weights runs/detect/plate_kz/weights/best.pt --format onnx --imgsz 640
 ```
 
 ## 4. Что реализовано
@@ -61,13 +61,14 @@ python3 scripts/export_model.py --weights runs/detect/runs/plate_kz/weights/best
 - Скрипт: `scripts/infer_plate.py`
 - OCR:
   - PaddleOCR (основной)
-  - Tesseract (резервный)
 - Реализовано:
   - нормализация OCR-текста,
   - очистка `KZ` префикса/суффикса,
   - исправление типовых OCR-ошибок по позициям номера,
   - валидация формата и кода региона,
   - расчёт postprocess score.
+Дополнительно:
+- `plate_type` (NEW_STANDARD / OLD_STANDARD / DIPLOMATIC / TRANSIT / TRAILER / INVALID).
 
 ### 4.5 Batch и оценка
 - Пакетный инференс: `scripts/batch_infer.py`
@@ -83,8 +84,11 @@ python3 scripts/export_model.py --weights runs/detect/runs/plate_kz/weights/best
 ### 5.1 Качество OCR на test (10 изображений)
 Команда:
 ```bash
-python3 scripts/evaluate.py --split test --images-root Cars --detector runs/detect/runs/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
+python3 scripts/evaluate.py --split test --images-root data/cars --detector runs/detect/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
 ```
+
+Дата запуска: 2026-02-18  
+Использованные веса: `runs/detect/plate_kz/weights/best.pt`
 
 Результат:
 - Exact Accuracy: **1.0000 (10/10)**
@@ -95,21 +99,27 @@ python3 scripts/evaluate.py --split test --images-root Cars --detector runs/dete
 - `outputs/test_ocr_results.csv`
 
 ### 5.2 Проверка на новых изображениях
-Папка: `new_images/` (5 изображений)
+Папка: `data/new_images/` (5 изображений)
 
 Команда:
 ```bash
-python3 scripts/batch_infer.py --input-dir new_images --detector runs/detect/runs/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/new_images_csv/predictions.csv --vis-dir outputs/new_images_vis
+python3 scripts/batch_infer.py --input-dir data/new_images --detector runs/detect/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/new_images_csv/predictions.csv --vis-dir outputs/new_images_vis
 ```
+
+Дата запуска: 2026-02-18  
+Использованные веса: `runs/detect/plate_kz/weights/best.pt`
 
 Результаты:
 - `outputs/new_images_csv/predictions.csv`
 - `outputs/new_images_vis/` (визуализации bbox + текст)
 
+Ключевые поля CSV:
+- `plate_format`, `plate_type`, `region_code`, `region_name`, `region_scheme`.
+
 ## 6. Соответствие требованиям ТЗ
 
 1. Open source:
-- Ultralytics YOLOv8, PaddleOCR/Tesseract, OpenCV, NumPy, Pillow.
+- Ultralytics YOLOv8, PaddleOCR, OpenCV, NumPy, Pillow.
 
 2. Локальная реализация:
 - обучение, инференс, оценка, тесты запущены локально.
@@ -117,14 +127,17 @@ python3 scripts/batch_infer.py --input-dir new_images --detector runs/detect/run
 3. Задел на mobile/offline:
 - есть экспорт в ONNX/TFLite,
 - есть офлайн-конфиг через `.env.example`,
+- для полностью офлайн OCR используются переменные
+  `PADDLEOCR_TEXT_DET_MODEL_DIR` и `PADDLEOCR_TEXT_REC_MODEL_DIR`
+  (при задании несуществующих путей выполнение завершится с ошибкой),
 - логика нормализации/валидации готова для переноса в мобильный модуль.
 
 ## 7. Финальные артефакты
 
 | Артефакт | Путь |
 |---|---|
-| Веса PyTorch | `runs/detect/runs/plate_kz/weights/best.pt` |
-| Веса ONNX | `runs/detect/runs/plate_kz/weights/best.onnx` |
+| Веса PyTorch | `runs/detect/plate_kz/weights/best.pt` |
+| Веса ONNX | `runs/detect/plate_kz/weights/best.onnx` |
 | Отчёт test OCR | `outputs/test_ocr_report.txt` |
 | Таблица test OCR | `outputs/test_ocr_results.csv` |
 | Предсказания новых фото | `outputs/new_images_csv/predictions.csv` |

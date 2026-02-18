@@ -31,6 +31,58 @@ SUPPORTED_FORMATS: dict[str, re.Pattern[str]] = {
     "std_prefixed": re.compile(r"^[A-Z]\d{3}[A-Z]{2}\d{2}$"),
     "trailer_like": re.compile(r"^\d{3}[A-Z]{2}\d{2}$"),
     "moto_like": re.compile(r"^\d{2}[A-Z]{2}\d{2}$"),
+    # Old KZ format (pre-2012): one region letter + 3 digits + 2 letters.
+    "old_private": re.compile(r"^[A-Z]\d{3}[A-Z]{2}$"),
+    # Old KZ format (pre-2012) for individual cars: one region letter + 3 digits + 3 letters.
+    "old_private_long": re.compile(r"^[A-Z]\d{3}[A-Z]{3}$"),
+}
+
+REGION_CODES_NEW: dict[str, str] = {
+    "01": "Astana city",
+    "02": "Almaty city",
+    "03": "Akmola Region",
+    "04": "Aktobe Region",
+    "05": "Almaty Region",
+    "06": "Atyrau Region",
+    "07": "West Kazakhstan Region",
+    "08": "Zhambyl Region",
+    "09": "Karaganda Region",
+    "10": "Kostanay Region",
+    "11": "Kyzylorda Region",
+    "12": "Mangistau Region",
+    "13": "Turkestan Region",
+    "14": "Pavlodar Region",
+    "15": "North Kazakhstan Region",
+    "16": "East Kazakhstan Region",
+    "17": "Shymkent city",
+    "18": "Abai Region",
+    "19": "Zhetysu Region",
+    "20": "Ulytau Region",
+}
+
+# Old letter codes used before the 2012 format change.
+REGION_CODES_OLD: dict[str, str] = {
+    "Z": "Astana city",
+    "A": "Almaty city",
+    "C": "Akmola Region",
+    "W": "Akmola or Kostanay Region",
+    "D": "Aktobe Region",
+    "B": "Almaty Region or Zhetysu Region",
+    "V": "Almaty Region or Zhetysu Region",
+    "E": "Atyrau Region",
+    "L": "West Kazakhstan Region",
+    "H": "Zhambyl Region",
+    "K": "Karaganda or Ulytau Region",
+    "M": "Karaganda or Ulytau Region",
+    "P": "Kostanay Region",
+    "N": "Kyzylorda Region",
+    "R": "Mangistau Region",
+    "X": "Turkestan Region or Shymkent city",
+    "S": "Pavlodar Region",
+    "O": "North Kazakhstan or Akmola Region",
+    "T": "North Kazakhstan Region",
+    "F": "East Kazakhstan or Abai Region",
+    "U": "East Kazakhstan or Abai Region",
 }
 
 
@@ -100,6 +152,9 @@ def clean_plate_text(text: str) -> str:
     text = re.sub(r"[^A-ZА-Я0-9]", "", text)
     text = re.sub(r"^KZ", "", text)
     text = re.sub(r"KZ$", "", text)
+    # Always drop leading 'K' (often comes from KZ prefix on the plate).
+    if text.startswith("K"):
+        text = text[1:]
     return normalize_kz_plate(text)
 
 
@@ -124,13 +179,28 @@ def detect_plate_format(text: str) -> str:
 
 
 def is_region_code_valid(text: str) -> bool:
-    if len(text) < 2:
-        return False
-    tail = text[-2:]
-    if not tail.isdigit():
-        return False
-    code = int(tail)
-    return 1 <= code <= 20
+    code, name, scheme = get_region_info(text)
+    if scheme == "new" and code is not None and name is not None:
+        return True
+    if scheme == "old" and code is not None and name is not None:
+        return True
+    return False
+
+
+def get_region_info(text: str) -> tuple[str | None, str | None, str]:
+    if len(text) >= 2 and text[-2:].isdigit():
+        code = text[-2:]
+        name = REGION_CODES_NEW.get(code)
+        if name:
+            return code, name, "new"
+        return code, None, "new"
+    if text and text[0].isalpha():
+        code = text[0].upper()
+        name = REGION_CODES_OLD.get(code)
+        if name:
+            return code, name, "old"
+        return code, None, "old"
+    return None, None, "unknown"
 
 
 def postprocess_score(text: str) -> int:

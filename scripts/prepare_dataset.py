@@ -14,8 +14,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--source",
         type=Path,
-        default=Path("Cars"),
-        help="Path to raw images folder (default: Cars).",
+        default=Path("data/cars"),
+        help="Path to raw images folder (default: data/cars).",
     )
     parser.add_argument(
         "--out",

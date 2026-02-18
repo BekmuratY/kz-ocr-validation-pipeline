@@ -1,0 +1,16 @@
+image,pred_text,confidence,plate_valid,plate_format,plate_type,region_valid,region_code,region_name,region_scheme,postprocess_score,normalization_steps,status,visualization
+test_img_1.jpg,828ARB09,0.8056,True,std_private,INVALID,True,09,Karaganda Region,new,105,"upper_strip,drop_non_alnum,normalize_kz_pattern",ok,outputs/new_images_vis/test_img_1.jpg
+test_img_10.jpg,491AEO19,0.9516,True,std_private,INVALID,True,19,Zhetysu Region,new,105,"drop_suffix_kz,normalize_kz_pattern",ok,outputs/new_images_vis/test_img_10.jpg
+test_img_11.jpg,798BII05,0.7909,True,std_private,INVALID,True,05,Almaty Region,new,105,normalize_kz_pattern,ok,outputs/new_images_vis/test_img_11.jpg
+test_img_12.jpg,367BBS05,0.7500,True,std_private,INVALID,True,05,Almaty Region,new,105,normalize_kz_pattern,ok,outputs/new_images_vis/test_img_12.jpg
+test_img_13.jpg,,0.0000,False,unknown,INVALID,False,,,unknown,0,,no_plate,outputs/new_images_vis/test_img_13.jpg
+test_img_14.jpg,147AEE06,0.5651,True,std_private,INVALID,True,06,Atyrau Region,new,105,drop_non_alnum,ok,outputs/new_images_vis/test_img_14.jpg
+test_img_15.jpg,694PMB05,0.8938,True,std_private,INVALID,True,05,Almaty Region,new,105,drop_prefix_kz,ok,outputs/new_images_vis/test_img_15.jpg
+test_img_2.jpg,401AGO15,0.4672,True,std_private,INVALID,True,15,North Kazakhstan Region,new,105,upper_strip,ok,outputs/new_images_vis/test_img_2.jpg
+test_img_3.jpg,771AFM18,0.8824,True,std_private,INVALID,True,18,Abai Region,new,105,,ok,outputs/new_images_vis/test_img_3.jpg
+test_img_4.jpg,146ADZ12,0.8157,True,std_private,INVALID,True,12,Mangistau Region,new,105,,ok,outputs/new_images_vis/test_img_4.jpg
+test_img_5.jpg,688ACJ15,0.8131,True,std_private,INVALID,True,15,North Kazakhstan Region,new,105,,ok,outputs/new_images_vis/test_img_5.jpg
+test_img_6.jpg,352AYQ13,0.9027,True,std_private,INVALID,True,13,Turkestan Region,new,105,,ok,outputs/new_images_vis/test_img_6.jpg
+test_img_7.webp,308BAZ10,0.8945,True,std_private,INVALID,True,10,Kostanay Region,new,105,drop_prefix_kz,ok,outputs/new_images_vis/test_img_7.webp
+test_img_8.jpg,757MEA01,0.8895,True,std_private,INVALID,True,01,Astana city,new,105,,ok,outputs/new_images_vis/test_img_8.jpg
+test_img_9.jpg,525OXA12,0.8975,True,std_private,INVALID,True,12,Mangistau Region,new,105,normalize_kz_pattern,ok,outputs/new_images_vis/test_img_9.jpg

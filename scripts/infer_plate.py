@@ -19,6 +19,7 @@ try:
     from postprocess import (
         clean_plate_text,
         detect_plate_format,
+        get_region_info,
         is_region_code_valid,
         normalize_plate_text_verbose,
         postprocess_score,
@@ -28,11 +29,16 @@ except ModuleNotFoundError:
     from scripts.postprocess import (
         clean_plate_text,
         detect_plate_format,
+        get_region_info,
         is_region_code_valid,
         normalize_plate_text_verbose,
         postprocess_score,
         score_plate_text,
     )
+try:
+    from plate_type import detect_plate_type
+except ModuleNotFoundError:
+    from scripts.plate_type import detect_plate_type
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,21 +49,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--detector",
         type=Path,
-        default=Path("runs/plate_kz/weights/best.pt"),
+        default=Path("runs/detect/plate_kz/weights/best.pt"),
         help="Path to trained detector weights.",
     )
-    parser.add_argument(
-        "--ocr-backend",
-        choices=["paddle", "tesseract"],
-        default="paddle",
-        help="OCR engine.",
-    )
-    parser.add_argument(
-        "--tesseract-lang",
-        type=str,
-        default="eng",
-        help="Tesseract language code, if backend=tesseract.",
-    )
+    # OCR backend is fixed to PaddleOCR in this project.
     parser.add_argument(
         "--save-vis",
         type=Path,
@@ -81,14 +76,6 @@ def resolve_detector_path(detector: Path) -> Path:
         return candidates[0]
     raise FileNotFoundError(
         f"Detector weights not found: {detector}. Also no best.pt found under runs/."
-    )
-
-
-def preprocess_crop_tesseract(crop: np.ndarray) -> np.ndarray:
-    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-    gray = cv2.bilateralFilter(gray, 7, 50, 50)
-    return cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 10
     )
 
 
@@ -157,6 +144,10 @@ def get_paddle_ocr():
     common_kwargs: dict[str, object] = {"lang": "en"}
     det_dir = os.getenv("PADDLEOCR_TEXT_DET_MODEL_DIR")
     rec_dir = os.getenv("PADDLEOCR_TEXT_REC_MODEL_DIR")
+    if det_dir and not Path(det_dir).exists():
+        raise FileNotFoundError(f"PADDLEOCR_TEXT_DET_MODEL_DIR not found: {det_dir}")
+    if rec_dir and not Path(rec_dir).exists():
+        raise FileNotFoundError(f"PADDLEOCR_TEXT_REC_MODEL_DIR not found: {rec_dir}")
     if det_dir:
         common_kwargs["text_detection_model_dir"] = det_dir
     if rec_dir:
@@ -190,19 +181,10 @@ def ocr_paddle(image: np.ndarray) -> str:
     return extract_text_from_paddle_result(result)
 
 
-def ocr_tesseract(image: np.ndarray, lang: str) -> str:
-    import pytesseract
-
-    config = "--oem 1 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    return pytesseract.image_to_string(image, lang=lang, config=config)
-
-
 def run_plate_inference(
     image_path: Path,
     detector_path: Path,
     conf: float = 0.2,
-    ocr_backend: str = "paddle",
-    tesseract_lang: str = "eng",
     save_vis: Path | None = None,
 ) -> dict[str, object]:
     detector_path = resolve_detector_path(detector_path)
@@ -224,6 +206,15 @@ def run_plate_inference(
             "confidence": 0.0,
             "raw_text": "",
             "plate_text": "",
+            "plate_valid": False,
+            "plate_format": "unknown",
+            "plate_type": "INVALID",
+            "region_valid": False,
+            "region_code": "",
+            "region_name": "",
+            "region_scheme": "unknown",
+            "postprocess_score": 0,
+            "normalization_steps": [],
             "visualization": str(save_vis) if save_vis else "",
             "status": "no_plate",
         }
@@ -241,38 +232,34 @@ def run_plate_inference(
     if crop.size == 0:
         raise RuntimeError("Detected bbox is empty after clipping.")
 
-    if ocr_backend == "paddle":
-        candidates = [
-            preprocess_crop_paddle(crop),
-            preprocess_crop_paddle_clahe(crop),
-            preprocess_crop_paddle_sharp(crop),
-        ]
-        best_raw = ""
-        best_norm = ""
-        best_steps: list[str] = []
-        best_pp_score = -10_000
-        for cand in candidates:
-            raw = ocr_paddle(cand)
-            norm, steps = normalize_plate_text_verbose(raw)
-            score = postprocess_score(norm)
-            if score > best_pp_score:
-                best_pp_score = score
-                best_raw = raw
-                best_norm = norm
-                best_steps = steps
-        raw_text = best_raw
-        plate_text = best_norm
-        normalization_steps = best_steps
-        pp_score = best_pp_score
-    else:
-        proc = preprocess_crop_tesseract(crop)
-        raw_text = ocr_tesseract(proc, tesseract_lang)
-        plate_text, normalization_steps = normalize_plate_text_verbose(raw_text)
-        pp_score = postprocess_score(plate_text)
+    candidates = [
+        preprocess_crop_paddle(crop),
+        preprocess_crop_paddle_clahe(crop),
+        preprocess_crop_paddle_sharp(crop),
+    ]
+    best_raw = ""
+    best_norm = ""
+    best_steps: list[str] = []
+    best_pp_score = -10_000
+    for cand in candidates:
+        raw = ocr_paddle(cand)
+        norm, steps = normalize_plate_text_verbose(raw)
+        score = postprocess_score(norm)
+        if score > best_pp_score:
+            best_pp_score = score
+            best_raw = raw
+            best_norm = norm
+            best_steps = steps
+    raw_text = best_raw
+    plate_text = best_norm
+    normalization_steps = best_steps
+    pp_score = best_pp_score
 
     plate_format = detect_plate_format(plate_text)
     region_valid = is_region_code_valid(plate_text)
+    region_code, region_name, region_scheme = get_region_info(plate_text)
     plate_valid = plate_format != "unknown" and region_valid
+    plate_type = detect_plate_type(plate_text)
 
     if save_vis:
         vis = img.copy()
@@ -291,7 +278,11 @@ def run_plate_inference(
         "plate_text": plate_text,
         "plate_valid": plate_valid,
         "plate_format": plate_format,
+        "plate_type": plate_type,
         "region_valid": region_valid,
+        "region_code": region_code or "",
+        "region_name": region_name or "",
+        "region_scheme": region_scheme,
         "postprocess_score": pp_score,
         "normalization_steps": normalization_steps,
         "visualization": str(save_vis) if save_vis else "",
@@ -305,14 +296,10 @@ def main() -> None:
 
     detector = args.detector
     conf = args.conf
-    ocr_backend = args.ocr_backend
-    tesseract_lang = args.tesseract_lang
     if args.config is not None:
         detector = Path(cfg_get(cfg, "detector.weights", str(detector)))
         if conf is None:
             conf = float(cfg_get(cfg, "detector.conf", 0.2))
-        ocr_backend = str(cfg_get(cfg, "ocr.backend", ocr_backend))
-        tesseract_lang = str(cfg_get(cfg, "ocr.tesseract_lang", tesseract_lang))
     if conf is None:
         conf = 0.2
 
@@ -320,8 +307,6 @@ def main() -> None:
         image_path=args.image,
         detector_path=detector,
         conf=conf,
-        ocr_backend=ocr_backend,
-        tesseract_lang=tesseract_lang,
         save_vis=args.save_vis,
     )
 
@@ -338,7 +323,11 @@ def main() -> None:
     print(f"plate_text={result['plate_text']}")
     print(f"plate_valid={result['plate_valid']}")
     print(f"plate_format={result['plate_format']}")
+    print(f"plate_type={result['plate_type']}")
     print(f"region_valid={result['region_valid']}")
+    print(f"region_code={result['region_code']}")
+    print(f"region_name={result['region_name']}")
+    print(f"region_scheme={result['region_scheme']}")
     print(f"postprocess_score={result['postprocess_score']}")
     print(f"normalization_steps={','.join(result['normalization_steps'])}")
     print(f"visualization={result['visualization']}")

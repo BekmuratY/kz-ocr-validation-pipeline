@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import re
+from datetime import datetime
 from collections import Counter
 from pathlib import Path
 
@@ -31,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--images-root",
         type=Path,
-        default=Path("Cars"),
+        default=Path("data/cars"),
         help="Folder with original images by filename.",
     )
     parser.add_argument(
@@ -41,8 +42,7 @@ def parse_args() -> argparse.Namespace:
         help="Path to detector weights.",
     )
     parser.add_argument("--conf", type=float, default=None, help="Detection confidence threshold.")
-    parser.add_argument("--ocr-backend", choices=["paddle", "tesseract"], default="paddle")
-    parser.add_argument("--tesseract-lang", type=str, default="eng")
+    # OCR backend fixed to PaddleOCR for this project.
     parser.add_argument(
         "--output-csv",
         type=Path,
@@ -90,8 +90,7 @@ def main() -> None:
     images_root = args.images_root
     detector = args.detector
     conf = args.conf
-    ocr_backend = args.ocr_backend
-    tesseract_lang = args.tesseract_lang
+    # no OCR backend switches
     output_csv = args.output_csv
     report_path = args.report_path
     if args.config is not None:
@@ -101,10 +100,10 @@ def main() -> None:
         detector = Path(cfg_get(cfg, "detector.weights", str(detector)))
         if conf is None:
             conf = float(cfg_get(cfg, "detector.conf", 0.2))
-        ocr_backend = str(cfg_get(cfg, "ocr.backend", ocr_backend))
-        tesseract_lang = str(cfg_get(cfg, "ocr.tesseract_lang", tesseract_lang))
         output_csv = Path(cfg_get(cfg, "paths.eval_output_csv", str(output_csv)))
         report_path = Path(cfg_get(cfg, "paths.eval_report", str(report_path)))
+    if conf is None:
+        conf = 0.2
 
     rows: list[dict[str, str]] = []
     with labels_csv.open(newline="", encoding="utf-8") as f:
@@ -124,8 +123,6 @@ def main() -> None:
             image_path=image_path,
             detector_path=detector,
             conf=conf,
-            ocr_backend=ocr_backend,
-            tesseract_lang=tesseract_lang,
             save_vis=None,
         )
         pred_text = clean(str(result["plate_text"]))
@@ -174,7 +171,16 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(out_rows)
 
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
+        f"run_date={now}",
+        f"labels_csv={labels_csv}",
+        f"images_root={images_root}",
+        f"detector={detector}",
+        f"conf={conf if conf is not None else 0.2}",
+        f"output_csv={output_csv}",
+        f"report_path={report_path}",
+        "",
         f"split={split}",
         f"test_images={len(out_rows)}",
         f"with_gt={exact_total}",
@@ -228,5 +234,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    if conf is None:
-        conf = 0.2

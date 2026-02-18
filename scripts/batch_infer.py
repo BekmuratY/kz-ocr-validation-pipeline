@@ -23,7 +23,11 @@ BATCH_FIELDNAMES = [
     "confidence",
     "plate_valid",
     "plate_format",
+    "plate_type",
     "region_valid",
+    "region_code",
+    "region_name",
+    "region_scheme",
     "postprocess_score",
     "normalization_steps",
     "status",
@@ -42,8 +46,7 @@ def parse_args() -> argparse.Namespace:
         default=Path("runs/detect/plate_kz/weights/best.pt"),
         help="Path to detector weights.",
     )
-    parser.add_argument("--ocr-backend", choices=["paddle", "tesseract"], default="paddle")
-    parser.add_argument("--tesseract-lang", type=str, default="eng")
+    # OCR backend fixed to PaddleOCR for this project.
     parser.add_argument(
         "--output-csv",
         type=Path,
@@ -77,7 +80,11 @@ def inference_to_csv_row(image_name: str, result: dict[str, object], vis_path: P
         "confidence": f"{float(result['confidence']):.4f}",
         "plate_valid": str(result["plate_valid"]),
         "plate_format": str(result["plate_format"]),
+        "plate_type": str(result.get("plate_type", "")),
         "region_valid": str(result["region_valid"]),
+        "region_code": str(result.get("region_code", "")),
+        "region_name": str(result.get("region_name", "")),
+        "region_scheme": str(result.get("region_scheme", "")),
         "postprocess_score": str(result["postprocess_score"]),
         "normalization_steps": ",".join(result["normalization_steps"]),
         "status": str(result["status"]),
@@ -92,8 +99,7 @@ def main() -> None:
     input_dir = args.input_dir
     detector = args.detector
     conf = args.conf
-    ocr_backend = args.ocr_backend
-    tesseract_lang = args.tesseract_lang
+    # no OCR backend switches
     output_csv = args.output_csv
     vis_dir = args.vis_dir
     run_log_root = args.run_log_root
@@ -102,8 +108,6 @@ def main() -> None:
         detector = Path(cfg_get(cfg, "detector.weights", str(detector)))
         if conf is None:
             conf = float(cfg_get(cfg, "detector.conf", 0.2))
-        ocr_backend = str(cfg_get(cfg, "ocr.backend", ocr_backend))
-        tesseract_lang = str(cfg_get(cfg, "ocr.tesseract_lang", tesseract_lang))
         output_csv = Path(cfg_get(cfg, "paths.batch_output_csv", str(output_csv)))
         vis_dir = Path(cfg_get(cfg, "paths.batch_vis_dir", str(vis_dir)))
         run_log_root = Path(cfg_get(cfg, "paths.run_log_root", str(run_log_root)))
@@ -126,8 +130,6 @@ def main() -> None:
             image_path=image_path,
             detector_path=detector,
             conf=conf,
-            ocr_backend=ocr_backend,
-            tesseract_lang=tesseract_lang,
             save_vis=vis_path,
         )
         rows.append(inference_to_csv_row(image_path.name, result, vis_path))

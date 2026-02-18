@@ -1,3 +1,11 @@
+run_date=2026-02-18 22:08:21
+labels_csv=data/kz_plate/ocr_labels_template.csv
+images_root=Cars
+detector=runs/detect/runs/plate_kz/weights/best.pt
+conf=0.2
+output_csv=outputs/test_ocr_results.csv
+report_path=outputs/test_ocr_report.txt
+
 split=test
 test_images=10
 with_gt=10

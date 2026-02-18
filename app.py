@@ -43,11 +43,10 @@ def _csv_bytes(rows: list[dict[str, object]], fieldnames: list[str]) -> bytes:
 
 
 @st.cache_resource
-def _warm_resources(detector_path: str, ocr_backend: str) -> bool:
+def _warm_resources(detector_path: str) -> bool:
     # Warm heavy resources once per app process.
     get_detector(detector_path)
-    if ocr_backend == "paddle":
-        get_paddle_ocr()
+    get_paddle_ocr()
     return True
 
 
@@ -66,8 +65,6 @@ def _run_with_auto_conf(
     image_path: Path,
     detector: Path,
     base_conf: float,
-    ocr_backend: str,
-    tesseract_lang: str,
     save_vis: Path,
     auto_retry: bool,
 ) -> tuple[dict[str, object], float, int]:
@@ -80,8 +77,6 @@ def _run_with_auto_conf(
             image_path=image_path,
             detector_path=detector,
             conf=c,
-            ocr_backend=ocr_backend,
-            tesseract_lang=tesseract_lang,
             save_vis=save_vis,
         )
         last = res
@@ -124,18 +119,16 @@ def main() -> None:
         st.header("Settings")
         model_mode = st.selectbox("Detector runtime", options=["PyTorch (.pt)", "ONNX (.onnx)"])
         default_detector = (
-            "runs/detect/runs/plate_kz/weights/best.onnx"
+            "runs/detect/plate_kz/weights/best.onnx"
             if "ONNX" in model_mode
-            else "runs/detect/runs/plate_kz/weights/best.pt"
+            else "runs/detect/plate_kz/weights/best.pt"
         )
         detector = st.text_input("Detector weights", value=default_detector)
         conf = st.slider("Detection confidence", min_value=0.01, max_value=0.50, value=0.20, step=0.01)
         auto_conf_retry = st.checkbox("Auto lower confidence if no plate", value=True)
-        ocr_backend = st.selectbox("OCR backend", options=["paddle", "tesseract"], index=0)
-        tesseract_lang = st.text_input("Tesseract lang", value="eng")
 
     detector_path = Path(detector)
-    _warm_resources(str(detector_path), ocr_backend)
+    _warm_resources(str(detector_path))
 
     tab_single, tab_batch = st.tabs(["Single image", "Batch images"])
 
@@ -154,8 +147,6 @@ def main() -> None:
                     image_path=image_path,
                     detector=detector_path,
                     base_conf=conf,
-                    ocr_backend=ocr_backend,
-                    tesseract_lang=tesseract_lang,
                     save_vis=vis_path,
                     auto_retry=auto_conf_retry,
                 )
@@ -182,7 +173,11 @@ def main() -> None:
                     "elapsed_ms": round(elapsed_ms, 2),
                     "plate_valid": result.get("plate_valid"),
                     "plate_format": result.get("plate_format"),
+                    "plate_type": result.get("plate_type"),
                     "region_valid": result.get("region_valid"),
+                    "region_code": result.get("region_code"),
+                    "region_name": result.get("region_name"),
+                    "region_scheme": result.get("region_scheme"),
                     "status": result.get("status"),
                 }
             )
@@ -201,7 +196,11 @@ def main() -> None:
                 "confidence": result.get("confidence", 0.0),
                 "plate_valid": result.get("plate_valid", False),
                 "plate_format": result.get("plate_format", "unknown"),
+                "plate_type": result.get("plate_type", ""),
                 "region_valid": result.get("region_valid", False),
+                "region_code": result.get("region_code", ""),
+                "region_name": result.get("region_name", ""),
+                "region_scheme": result.get("region_scheme", ""),
                 "postprocess_score": result.get("postprocess_score", 0),
                 "normalization_steps": ",".join(result.get("normalization_steps", [])),
                 "status": result.get("status", "error"),
@@ -234,8 +233,6 @@ def main() -> None:
                     image_path=image_path,
                     detector=detector_path,
                     base_conf=conf,
-                    ocr_backend=ocr_backend,
-                    tesseract_lang=tesseract_lang,
                     save_vis=vis_path,
                     auto_retry=auto_conf_retry,
                 )
