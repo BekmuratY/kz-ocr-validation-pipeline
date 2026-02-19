@@ -86,7 +86,7 @@ def inference_to_csv_row(image_name: str, result: dict[str, object], vis_path: P
         "region_name": str(result.get("region_name", "")),
         "region_scheme": str(result.get("region_scheme", "")),
         "postprocess_score": str(result["postprocess_score"]),
-        "normalization_steps": ",".join(result["normalization_steps"]),
+        "normalization_steps": ",".join(result["normalization_steps"]), # type: ignore
         "status": str(result["status"]),
         "visualization": str(vis_path),
     }
