@@ -135,13 +135,16 @@ python scripts/evaluate.py \
   --config configs/default.yaml \
   --labels-csv data/kz_plate/ocr_labels_template.csv \
   --split test \
-  --images-root data/cars \
+  --images-root data/kz_plate/images/test \
   --detector runs/detect/plate_kz/weights/best.pt \
   --output-csv outputs/test_ocr_results.csv \
   --report-path outputs/test_ocr_report.txt
 ```
 
 Отчёт включает топ‑пары несовпадений по символам.
+Важно: `--images-root` должен указывать на папку конкретного сплита
+(`data/kz_plate/images/test`, `data/kz_plate/images/val` или `data/kz_plate/images/train`),
+потому что `evaluate.py` ищет картинки по имени файла внутри этого каталога.
 
 ## 8) Экспорт модели (mobile/offline)
 
@@ -245,7 +248,7 @@ python scripts/evaluate.py \
   --config configs/default.yaml \
   --labels-csv data/kz_plate/ocr_labels_template.csv \
   --split test \
-  --images-root data/cars \
+  --images-root data/kz_plate/images/test \
   --detector runs/detect/plate_kz/weights/best.pt \
   --output-csv outputs/test_ocr_results.csv \
   --report-path outputs/test_ocr_report.txt
@@ -299,7 +302,7 @@ python scripts/evaluate.py \
   --config configs/default.yaml \
   --labels-csv data/kz_plate/ocr_labels_template.csv \
   --split test \
-  --images-root data/cars \
+  --images-root data/kz_plate/images/test \
   --detector runs/detect/plate_kz/weights/best.pt \
   --output-csv outputs/test_ocr_results.csv \
   --report-path outputs/test_ocr_report.txt

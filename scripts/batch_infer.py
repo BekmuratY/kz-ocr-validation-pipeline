@@ -6,6 +6,7 @@ import csv
 from datetime import datetime
 from pathlib import Path
 import shutil
+import traceback
 
 try:
     from config_utils import cfg_get, load_config
@@ -70,24 +71,56 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable timestamped run log copy.",
     )
+    parser.add_argument(
+        "--no-multicrop-fallback",
+        action="store_true",
+        help="Disable multi-crop fallback when no plate is detected.",
+    )
+    parser.add_argument(
+        "--error-log",
+        type=Path,
+        default=Path("outputs/batch_errors.log"),
+        help="Where to write per-image errors.",
+    )
     return parser.parse_args()
+
+
+def _safe_normalization_steps(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return ",".join(str(item) for item in value)
+    return str(value)
+
+
+def _safe_float(value: object, default: float = 0.0) -> float:
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return default
+    return default
 
 
 def inference_to_csv_row(image_name: str, result: dict[str, object], vis_path: Path) -> dict[str, str]:
     return {
         "image": image_name,
-        "pred_text": str(result["plate_text"]),
-        "confidence": f"{float(result['confidence']):.4f}",
-        "plate_valid": str(result["plate_valid"]),
-        "plate_format": str(result["plate_format"]),
+        "pred_text": str(result.get("plate_text", "")),
+        "confidence": f"{_safe_float(result.get('confidence')):.4f}",
+        "plate_valid": str(result.get("plate_valid", False)),
+        "plate_format": str(result.get("plate_format", "")),
         "plate_type": str(result.get("plate_type", "")),
-        "region_valid": str(result["region_valid"]),
+        "region_valid": str(result.get("region_valid", False)),
         "region_code": str(result.get("region_code", "")),
         "region_name": str(result.get("region_name", "")),
         "region_scheme": str(result.get("region_scheme", "")),
-        "postprocess_score": str(result["postprocess_score"]),
-        "normalization_steps": ",".join(result["normalization_steps"]), # type: ignore
-        "status": str(result["status"]),
+        "postprocess_score": str(result.get("postprocess_score", "")),
+        "normalization_steps": _safe_normalization_steps(result.get("normalization_steps")),
+        "status": str(result.get("status", "")),
         "visualization": str(vis_path),
     }
 
@@ -103,6 +136,8 @@ def main() -> None:
     output_csv = args.output_csv
     vis_dir = args.vis_dir
     run_log_root = args.run_log_root
+    error_log = args.error_log
+    enable_multicrop_fallback = not args.no_multicrop_fallback
     if args.config is not None:
         input_dir = Path(cfg_get(cfg, "paths.batch_input_dir", str(input_dir)))
         detector = Path(cfg_get(cfg, "detector.weights", str(detector)))
@@ -111,6 +146,10 @@ def main() -> None:
         output_csv = Path(cfg_get(cfg, "paths.batch_output_csv", str(output_csv)))
         vis_dir = Path(cfg_get(cfg, "paths.batch_vis_dir", str(vis_dir)))
         run_log_root = Path(cfg_get(cfg, "paths.run_log_root", str(run_log_root)))
+        error_log = Path(cfg_get(cfg, "paths.batch_error_log", str(error_log)))
+        enable_multicrop_fallback = bool(
+            cfg_get(cfg, "batch.multicrop_fallback", enable_multicrop_fallback)
+        )
 
     if conf is None:
         conf = 0.2
@@ -124,16 +163,35 @@ def main() -> None:
     vis_dir.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict[str, str]] = []
-    for image_path in images:
-        vis_path = vis_dir / image_path.name
-        result = run_plate_inference(
-            image_path=image_path,
-            detector_path=detector,
-            conf=conf,
-            save_vis=vis_path,
-        )
+    errors: list[str] = []
+    for index, image_path in enumerate(images, start=1):
+        vis_path = vis_dir / f"{image_path.stem}_{index}{image_path.suffix}"
+        try:
+            result = run_plate_inference(
+                image_path=image_path,
+                detector_path=detector,
+                conf=conf,
+                save_vis=vis_path,
+                enable_multicrop_fallback=enable_multicrop_fallback,
+            )
+        except Exception as exc:
+            errors.append(f"{image_path}\n{traceback.format_exc()}")
+            result = {
+                "plate_text": "",
+                "confidence": 0.0,
+                "plate_valid": False,
+                "plate_format": "",
+                "plate_type": "",
+                "region_valid": False,
+                "region_code": "",
+                "region_name": "",
+                "region_scheme": "",
+                "postprocess_score": "",
+                "normalization_steps": "",
+                "status": f"error: {exc}",
+            }
         rows.append(inference_to_csv_row(image_path.name, result, vis_path))
-        print(f"{image_path.name} -> {result['plate_text']} [{result['status']}]")
+        print(f"{image_path.name} -> {result.get('plate_text', '')} [{result.get('status', '')}]")
 
     with output_csv.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=BATCH_FIELDNAMES)
@@ -142,18 +200,25 @@ def main() -> None:
 
     print(f"Saved CSV: {output_csv}")
     print(f"Saved visualizations: {vis_dir}")
+    if errors:
+        error_log.parent.mkdir(parents=True, exist_ok=True)
+        error_log.write_text("\n\n".join(errors) + "\n", encoding="utf-8")
+        print(f"Saved errors: {error_log}")
 
     if not args.no_run_log:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_dir = run_log_root / f"batch_{ts}"
         run_vis = run_dir / "vis"
         run_csv = run_dir / "predictions.csv"
+        run_err = run_dir / "errors.log"
         run_vis.mkdir(parents=True, exist_ok=True)
         # Save CSV snapshot.
         with run_csv.open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=BATCH_FIELDNAMES)
             writer.writeheader()
             writer.writerows(rows)
+        if errors:
+            run_err.write_text("\n\n".join(errors) + "\n", encoding="utf-8")
         for row in rows:
             src = Path(row["visualization"])
             if src.exists():

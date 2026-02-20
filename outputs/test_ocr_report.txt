@@ -1,73 +1,85 @@
-run_date=2026-02-18 22:08:21
+run_date=2026-02-20 09:40:56
 labels_csv=data/kz_plate/ocr_labels_template.csv
-images_root=Cars
-detector=runs/detect/runs/plate_kz/weights/best.pt
+images_root=data/kz_plate/images/test
+detector=runs/detect/plate_kz/weights/best.pt
 conf=0.2
 output_csv=outputs/test_ocr_results.csv
 report_path=outputs/test_ocr_report.txt
 
 split=test
-test_images=10
-with_gt=10
-exact_accuracy=1.0000 (10/10)
-cer=0.0000 (0/80)
+test_images=25
+with_gt=25
+exact_accuracy=0.9600 (24/25)
+cer=0.0400 (8/200)
 
 top_char_mismatches:
 none
 
 char_distribution_gt:
-0: 12
-5: 9
-A: 8
-3: 7
-2: 5
-1: 5
-6: 4
-7: 4
-9: 3
-B: 3
-D: 2
+0: 22
+A: 20
+1: 19
+5: 18
+2: 13
+3: 12
+7: 11
+B: 10
+6: 9
+9: 8
+8: 7
+4: 6
+E: 5
+M: 4
+D: 3
+Z: 3
+J: 3
+P: 3
+Y: 3
+C: 3
+I: 3
+O: 3
+R: 2
 W: 2
-J: 2
-P: 2
-C: 2
-4: 1
-R: 1
-Z: 1
-M: 1
-E: 1
-F: 1
+F: 2
 U: 1
-Y: 1
 K: 1
-I: 1
+S: 1
+G: 1
+Q: 1
+X: 1
 
 char_distribution_pred:
-0: 12
-5: 9
-A: 8
-3: 7
-2: 5
-1: 5
-6: 4
-7: 4
-9: 3
-B: 3
-D: 2
+0: 21
+A: 19
+1: 19
+5: 18
+3: 11
+7: 11
+2: 10
+6: 9
+B: 9
+9: 8
+8: 7
+4: 6
+E: 5
+M: 4
+D: 3
+Z: 3
+J: 3
+P: 3
+C: 3
+I: 3
+O: 3
+R: 2
 W: 2
-J: 2
-P: 2
-C: 2
-4: 1
-R: 1
-Z: 1
-M: 1
-E: 1
-F: 1
+F: 2
+Y: 2
 U: 1
-Y: 1
 K: 1
-I: 1
+S: 1
+G: 1
+Q: 1
+X: 1
 
 per_image:
 images/test/img_87.jpg | gt=234ARD02 | pred=234ARD02 | exact=1 | status=ok
@@ -80,3 +92,18 @@ images/test/img_94.jpg | gt=105AYC05 | pred=105AYC05 | exact=1 | status=ok
 images/test/img_11.jpg | gt=760AKJ03 | pred=760AKJ03 | exact=1 | status=ok
 images/test/img_21.jpg | gt=156CDA07 | pred=156CDA07 | exact=1 | status=ok
 images/test/img_82.jpg | gt=323BIP05 | pred=323BIP05 | exact=1 | status=ok
+images/test/test_img_1.jpg | gt=828ARB09 | pred=828ARB09 | exact=1 | status=ok
+images/test/test_img_10.jpg | gt=491AEO19 | pred=491AEO19 | exact=1 | status=ok
+images/test/test_img_11.jpg | gt=798BII05 | pred=798BII05 | exact=1 | status=ok
+images/test/test_img_12.jpg | gt=367BBS05 | pred=367BBS05 | exact=1 | status=ok
+images/test/test_img_13.jpg | gt=322BYA02 | pred= | exact=0 | status=no_plate
+images/test/test_img_14.jpg | gt=147AEE06 | pred=147AEE06 | exact=1 | status=ok
+images/test/test_img_15.jpg | gt=694PMB05 | pred=694PMB05 | exact=1 | status=ok
+images/test/test_img_2.jpg | gt=401AGO15 | pred=401AGO15 | exact=1 | status=ok
+images/test/test_img_3.jpg | gt=771AFM18 | pred=771AFM18 | exact=1 | status=ok
+images/test/test_img_4.jpg | gt=146ADZ12 | pred=146ADZ12 | exact=1 | status=ok
+images/test/test_img_5.jpg | gt=688ACJ15 | pred=688ACJ15 | exact=1 | status=ok
+images/test/test_img_6.jpg | gt=352AYQ13 | pred=352AYQ13 | exact=1 | status=ok
+images/test/test_img_7.webp | gt=308BAZ10 | pred=308BAZ10 | exact=1 | status=ok
+images/test/test_img_8.jpg | gt=757MEA01 | pred=757MEA01 | exact=1 | status=ok
+images/test/test_img_9.jpg | gt=525OXA12 | pred=525OXA12 | exact=1 | status=ok

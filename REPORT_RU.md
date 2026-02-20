@@ -28,12 +28,12 @@
 
 1. Проверка качества на test:
 ```bash
-python3 scripts/evaluate.py --split test --images-root data/cars --detector runs/detect/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
+python3 scripts/evaluate.py --split test --images-root data/cars --detector runs/detect/plate_kz/weights/best.pt --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
 ```
 
 2. Пакетная проверка новых изображений:
 ```bash
-python3 scripts/batch_infer.py --input-dir data/new_images --detector runs/detect/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/new_images_csv/predictions.csv --vis-dir outputs/new_images_vis
+python3 scripts/batch_infer.py --input-dir data/new_images --detector runs/detect/plate_kz/weights/best.pt --output-csv outputs/new_images_csv/predictions.csv --vis-dir outputs/new_images_vis
 ```
 
 3. Экспорт для mobile/offline:
@@ -84,7 +84,7 @@ python3 scripts/export_model.py --weights runs/detect/plate_kz/weights/best.pt -
 ### 5.1 Качество OCR на test (10 изображений)
 Команда:
 ```bash
-python3 scripts/evaluate.py --split test --images-root data/cars --detector runs/detect/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
+python3 scripts/evaluate.py --split test --images-root data/cars --detector runs/detect/plate_kz/weights/best.pt --output-csv outputs/test_ocr_results.csv --report-path outputs/test_ocr_report.txt
 ```
 
 Дата запуска: 2026-02-18  
@@ -103,7 +103,7 @@ python3 scripts/evaluate.py --split test --images-root data/cars --detector runs
 
 Команда:
 ```bash
-python3 scripts/batch_infer.py --input-dir data/new_images --detector runs/detect/plate_kz/weights/best.pt --ocr-backend paddle --output-csv outputs/new_images_csv/predictions.csv --vis-dir outputs/new_images_vis
+python3 scripts/batch_infer.py --input-dir data/new_images --detector runs/detect/plate_kz/weights/best.pt --output-csv outputs/new_images_csv/predictions.csv --vis-dir outputs/new_images_vis
 ```
 
 Дата запуска: 2026-02-18  

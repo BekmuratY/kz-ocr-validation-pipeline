@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import argparse
 import os
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 
 import cv2
 import numpy as np
+from PIL import Image
 from ultralytics import YOLO
 
 try:
@@ -58,6 +60,11 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("outputs/result.jpg"),
         help="Where to save visualization image.",
+    )
+    parser.add_argument(
+        "--no-multicrop-fallback",
+        action="store_true",
+        help="Disable multi-crop fallback when no plate is detected.",
     )
     return parser.parse_args()
 
@@ -181,7 +188,7 @@ def ocr_paddle(image: np.ndarray) -> str:
     return extract_text_from_paddle_result(result)
 
 
-def run_plate_inference(
+def _run_plate_inference_once(
     image_path: Path,
     detector_path: Path,
     conf: float = 0.2,
@@ -290,6 +297,100 @@ def run_plate_inference(
     }
 
 
+def _multicrop_boxes(w: int, h: int) -> list[tuple[int, int, int, int]]:
+    boxes: list[tuple[int, int, int, int]] = []
+    for top_frac in (0.35, 0.45, 0.55):
+        for left_frac in (0.05, 0.15, 0.25):
+            for right_frac in (0.85, 0.95):
+                top = int(h * top_frac)
+                bottom = int(h * 0.82)
+                left = int(w * left_frac)
+                right = int(w * right_frac)
+                if right - left < 50 or bottom - top < 50:
+                    continue
+                boxes.append((left, top, right, bottom))
+    return boxes
+
+
+def _run_multicrop_fallback(
+    image_path: Path,
+    detector_path: Path,
+    conf: float,
+    save_vis: Path | None,
+) -> dict[str, object] | None:
+    try:
+        img = Image.open(image_path)
+    except Exception:
+        return None
+
+    w, h = img.size
+    boxes = _multicrop_boxes(w, h)
+    if not boxes:
+        return None
+
+    best: dict[str, object] | None = None
+    best_conf = -1.0
+    with tempfile.TemporaryDirectory(prefix="multicrop_") as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        for i, box in enumerate(boxes, start=1):
+            crop_path = tmpdir_path / f"crop_{i:02d}.jpg"
+            img.crop(box).save(crop_path, quality=95)
+            result = _run_plate_inference_once(
+                image_path=crop_path,
+                detector_path=detector_path,
+                conf=conf,
+                save_vis=None,
+            )
+            if result.get("status") != "ok":
+                continue
+            try:
+                result_conf = float(result.get("confidence", 0.0))
+            except (TypeError, ValueError):
+                result_conf = 0.0
+            if result_conf > best_conf:
+                best_conf = result_conf
+                best = result
+
+        if best is None:
+            return None
+
+        # Re-run on best crop to save visualization while tempdir still exists.
+        if save_vis is not None:
+            best_crop = Path(best["image"])
+            best = _run_plate_inference_once(
+                image_path=best_crop,
+                detector_path=detector_path,
+                conf=conf,
+                save_vis=save_vis,
+            )
+        return best
+
+
+def run_plate_inference(
+    image_path: Path,
+    detector_path: Path,
+    conf: float = 0.2,
+    save_vis: Path | None = None,
+    enable_multicrop_fallback: bool = True,
+) -> dict[str, object]:
+    result = _run_plate_inference_once(
+        image_path=image_path,
+        detector_path=detector_path,
+        conf=conf,
+        save_vis=save_vis,
+    )
+    if result.get("status") == "no_plate" and enable_multicrop_fallback:
+        fallback = _run_multicrop_fallback(
+            image_path=image_path,
+            detector_path=detector_path,
+            conf=conf,
+            save_vis=save_vis,
+        )
+        if fallback is not None:
+            return fallback
+    return result
+
+
 def main() -> None:
     args = parse_args()
     cfg = load_config(args.config)
@@ -308,6 +409,7 @@ def main() -> None:
         detector_path=detector,
         conf=conf,
         save_vis=args.save_vis,
+        enable_multicrop_fallback=not args.no_multicrop_fallback,
     )
 
     if result["status"] == "no_plate":

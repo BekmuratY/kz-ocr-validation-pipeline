@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 from collections import Counter
 from pathlib import Path
+import traceback
 
 try:
     from config_utils import cfg_get, load_config
@@ -55,6 +56,17 @@ def parse_args() -> argparse.Namespace:
         default=Path("outputs/test_ocr_report.txt"),
         help="Summary report path.",
     )
+    parser.add_argument(
+        "--skip-missing",
+        action="store_true",
+        help="Skip rows with missing images or invalid CSV columns.",
+    )
+    parser.add_argument(
+        "--error-log",
+        type=Path,
+        default=Path("outputs/eval_errors.log"),
+        help="Where to write per-image errors.",
+    )
     return parser.parse_args()
 
 
@@ -93,6 +105,8 @@ def main() -> None:
     # no OCR backend switches
     output_csv = args.output_csv
     report_path = args.report_path
+    skip_missing = args.skip_missing
+    error_log = args.error_log
     if args.config is not None:
         labels_csv = Path(cfg_get(cfg, "paths.ocr_labels_csv", str(labels_csv)))
         split = str(cfg_get(cfg, "paths.eval_split", split))
@@ -102,6 +116,7 @@ def main() -> None:
             conf = float(cfg_get(cfg, "detector.conf", 0.2))
         output_csv = Path(cfg_get(cfg, "paths.eval_output_csv", str(output_csv)))
         report_path = Path(cfg_get(cfg, "paths.eval_report", str(report_path)))
+        error_log = Path(cfg_get(cfg, "paths.eval_error_log", str(error_log)))
     if conf is None:
         conf = 0.2
 
@@ -109,23 +124,42 @@ def main() -> None:
     with labels_csv.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
-            if r["image"].startswith(f"images/{split}/"):
-                rows.append({"image": r["image"], "gt_text": clean(r.get("plate_text", ""))})
+            image_value = r.get("image")
+            if not image_value:
+                if skip_missing:
+                    continue
+                raise KeyError("CSV missing required column 'image'")
+            if image_value.startswith(f"images/{split}/"):
+                rows.append({"image": image_value, "gt_text": clean(r.get("plate_text", ""))})
 
     if not rows:
         raise RuntimeError(f"No rows found for split={split} in {labels_csv}")
 
     out_rows: list[dict[str, str]] = []
+    errors: list[str] = []
     for row in rows:
         filename = Path(row["image"]).name
         image_path = images_root / filename
-        result = run_plate_inference(
-            image_path=image_path,
-            detector_path=detector,
-            conf=conf,
-            save_vis=None,
-        )
-        pred_text = clean(str(result["plate_text"]))
+        if not image_path.exists():
+            msg = f"missing_image: {image_path}"
+            if skip_missing:
+                errors.append(msg)
+                continue
+            raise FileNotFoundError(msg)
+        try:
+            result = run_plate_inference(
+                image_path=image_path,
+                detector_path=detector,
+                conf=conf,
+                save_vis=None,
+            )
+            pred_text = clean(str(result["plate_text"]))
+            status = str(result["status"])
+        except Exception:
+            status = "error"
+            pred_text = ""
+            errors.append(f"{image_path}\n{traceback.format_exc()}")
+
         gt_text = row["gt_text"]
         exact_match = int(gt_text != "" and pred_text == gt_text)
         char_dist = levenshtein(gt_text, pred_text) if gt_text else ""
@@ -135,7 +169,7 @@ def main() -> None:
                 "image": row["image"],
                 "gt_text": gt_text,
                 "pred_text": pred_text,
-                "status": str(result["status"]),
+                "status": status,
                 "exact_match": str(exact_match),
                 "char_dist": str(char_dist),
                 "gt_len": str(gt_len),
@@ -225,11 +259,16 @@ def main() -> None:
         )
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if errors:
+        error_log.parent.mkdir(parents=True, exist_ok=True)
+        error_log.write_text("\n\n".join(errors) + "\n", encoding="utf-8")
 
     print(f"exact_accuracy={exact_acc:.4f} ({exact_correct}/{exact_total})")
     print(f"cer={cer:.4f} ({char_err}/{char_total})")
     print(f"saved_csv={output_csv}")
     print(f"saved_report={report_path}")
+    if errors:
+        print(f"errors_logged={error_log}")
 
 
 if __name__ == "__main__":

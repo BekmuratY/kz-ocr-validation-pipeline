@@ -1,2 +1,0 @@
-image,pred_text,confidence,plate_valid,plate_format,plate_type,region_valid,region_code,region_name,region_scheme,postprocess_score,normalization_steps,status,visualization
-for_test_1.webp,689ADS14,0.8317865133285522,True,std_private,INVALID,True,14,Pavlodar Region,new,105,,ok,/var/folders/wh/06pwsc5d0z330bt9t37pz73c0000gn/T/vis_for_test_1.webp

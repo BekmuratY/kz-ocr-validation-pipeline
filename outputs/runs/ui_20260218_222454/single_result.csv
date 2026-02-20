@@ -1,2 +1,0 @@
-image,pred_text,confidence,plate_valid,plate_format,plate_type,region_valid,region_code,region_name,region_scheme,postprocess_score,normalization_steps,status,visualization
-акцент_2014.webp,163AZG01,0.8995603322982788,True,std_private,INVALID,True,01,Astana city,new,105,"drop_non_alnum,normalize_kz_pattern",ok,/var/folders/wh/06pwsc5d0z330bt9t37pz73c0000gn/T/vis_акцент_2014.webp
